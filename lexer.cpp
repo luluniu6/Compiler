@@ -7,30 +7,33 @@
 
 // 枚举类型定义：状态枚举
 enum class State {
-    Initial,     // 初始状态
-    Id,          // 标识符状态
-    GT,          // '>' 状态
-    GE,          // '>=' 状态
-    LT,          // '<' 状态
-    LE,          // '<=' 状态
-    EQ,          // '=' 状态
-    EQEQ,        // '==' 状态
-    IntLiteral,  // 整数状态
-    FloatLiteral // 浮点数状态
+    Initial,      // 初始状态
+    Id,           // 标识符状态
+    GT,           // '>' 状态
+    GE,           // '>=' 状态
+    LT,           // '<' 状态
+    LE,           // '<=' 状态
+    EQ,           // '=' 状态
+    EQEQ,         // '==' 状态
+    IntLiteral,   // 整数状态
+    FloatLiteral, // 浮点数状态
+    Comment,      //忽略一整行的状态
+    Slash         //检测到第一个'/'后的状态
 };
 
 // 枚举类型定义：Token类型
 enum class TokenType {
-    Identifier,   // 标识符
-    Keyword,      // 关键字
-    GT,           // '>'
-    GE,           // '>='
-    LT,           // '<'
-    LE,           // '<='
-    EQ,           // '='
-    EQEQ,         // '=='
-    IntLiteral,   // 整数字面量
-    FloatLiteral  // 浮点数字面量
+    Identifier,    // 标识符
+    Keyword,       // 关键字
+    GT,            // '>'
+    GE,            // '>='
+    LT,            // '<'
+    LE,            // '<='
+    EQ,            // '='
+    EQEQ,          // '=='
+    IntLiteral,    // 整数字面量
+    FloatLiteral,  // 浮点数字面量
+    Slash          //单独的'/'
 };
 
 // Token 结构体
@@ -59,7 +62,7 @@ State initToken(char ch, std::vector<Token>& tokens, std::string& tokenText, Tok
         tokenText.clear();
     }
 
-    // 根据当前字符初始化新的状态
+    // 根据当前字符更新状态
     if (isalpha(ch)) {
         token.type = TokenType::Identifier;
         tokenText.push_back(ch);
@@ -80,6 +83,12 @@ State initToken(char ch, std::vector<Token>& tokens, std::string& tokenText, Tok
         token.type = TokenType::EQ;
         tokenText.push_back(ch);
         return State::EQ;
+    } else if (ch == '#') {
+        return State::Comment;
+    } else if (ch == '/') {
+        token.type = TokenType::Slash;
+        tokenText.push_back(ch);
+        return State::Slash;
     }
 
     // 返回初始状态
@@ -161,6 +170,21 @@ std::vector<Token> tokenize(const std::string& code) {
                     state = initToken(ch, tokens, tokenText, token);
                 }
                 break;
+            case State::Comment:
+                if (ch == '\n') {
+                    state = State::Initial;
+                }
+                break;
+            case State::Slash:
+                if (ch=='/') {
+                    //确认是注释,忽略整行
+                    tokenText.clear();
+                    state = State::Comment;
+                } else {
+                    //单独的一个'/',初始化新Token
+                    state = initToken(ch, tokens, tokenText, token);
+                }
+                break;
         }
     }
 
@@ -178,7 +202,7 @@ std::vector<Token> tokenize(const std::string& code) {
 
 // 测试代码
 int main() {
-    std::ifstream inputFile("input.txt"); // 从文件读取
+    std::ifstream inputFile("source.cpp"); // 从文件读取
     if (!inputFile.is_open()) {
         std::cerr << "open error" << std::endl;
         return 1;
