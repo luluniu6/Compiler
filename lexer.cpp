@@ -15,10 +15,12 @@ enum class State {
     LE,           // '<=' 状态
     EQ,           // '=' 状态
     EQEQ,         // '==' 状态
+    OP,           // '+'、'*'、'('、')'、'{'、'}'、'['、']'、';'、','的状态
     IntLiteral,   // 整数状态
     FloatLiteral, // 浮点数状态
     Comment,      //忽略一整行的状态
-    Slash         //检测到第一个'/'后的状态
+    Slash,        //检测到'/'后的状态
+    Negative      //检测负号的状态
 };
 
 // 枚举类型定义：Token类型
@@ -33,7 +35,18 @@ enum class TokenType {
     EQEQ,          // '=='
     IntLiteral,    // 整数字面量
     FloatLiteral,  // 浮点数字面量
-    Slash          //单独的'/'
+    Plus,          // '+'
+    Minus,         // '-'
+    Star,          // '*'
+    Slash,         // '/'
+    LParen,        // '('
+    RParen,        // ')'
+    LBrace,        // '{'
+    RBrace,        // '}'
+    LBracket,      // '['
+    RBracket,      // ']'
+    Semicolon,     // ';'
+    Comma,         // ','
 };
 
 // Token 结构体
@@ -44,7 +57,7 @@ struct Token {
 
 // 关键字集合
 const std::unordered_set<std::string> keywords = {
-    "if", "else", "while", "return", "int", "void", "float"
+    "main","if", "else", "while", "return", "int", "void", "float"
 };
 
 // 初始化并识别 token
@@ -83,14 +96,57 @@ State initToken(char ch, std::vector<Token>& tokens, std::string& tokenText, Tok
         token.type = TokenType::EQ;
         tokenText.push_back(ch);
         return State::EQ;
-    } else if (ch == '#') {
-        return State::Comment;
+    } else if (ch == '+') {
+        token.type = TokenType::Plus;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == '-') {
+        token.type = TokenType::Minus;
+        tokenText.push_back(ch);
+        return State::Negative; // 进入负数检测状态
+    } else if (ch == '*') {
+        token.type = TokenType::Star;
+        tokenText.push_back(ch);
+        return State::OP;
     } else if (ch == '/') {
         token.type = TokenType::Slash;
         tokenText.push_back(ch);
         return State::Slash;
-    }
-
+    } else if (ch == '(') {
+        token.type = TokenType::LParen;
+         tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == ')') {
+        token.type = TokenType::RParen;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == '{') {
+        token.type = TokenType::LBrace;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == '}') {
+        token.type = TokenType::RBrace;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == '[') {
+        token.type = TokenType::LBracket;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == ']') {
+        token.type = TokenType::RBracket;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if(ch == ';'){
+        token.type = TokenType::Semicolon;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if(ch == ','){
+        token.type = TokenType::Comma;
+        tokenText.push_back(ch);
+        return State::OP;
+    } else if (ch == '#') {
+        return State::Comment;
+    } 
     // 返回初始状态
     return State::Initial;
 }
@@ -152,6 +208,10 @@ std::vector<Token> tokenize(const std::string& code) {
                 state = initToken(ch, tokens, tokenText, token);
                 break;
 
+            case State::OP:
+                state = initToken(ch, tokens, tokenText, token);
+                break;
+    
             case State::IntLiteral:
                 if (isdigit(ch)) {
                     tokenText.push_back(ch);
@@ -165,16 +225,33 @@ std::vector<Token> tokenize(const std::string& code) {
 
             case State::FloatLiteral:
                 if (isdigit(ch)) {
+                    token.type = TokenType::FloatLiteral;
                     tokenText.push_back(ch);
                 } else {
                     state = initToken(ch, tokens, tokenText, token);
                 }
                 break;
+
+            case State::Negative:
+                if(isdigit(ch)) {
+                    token.type = TokenType::IntLiteral;
+                    tokenText.push_back(ch);
+                    state = State::IntLiteral;
+                } else if(ch == '.') {
+                    token.type = TokenType::FloatLiteral;
+                    tokenText.push_back(ch);
+                    state = State::FloatLiteral;
+                } else {
+                    state = initToken(ch, tokens, tokenText, token);
+                }
+                break;
+
             case State::Comment:
                 if (ch == '\n') {
                     state = State::Initial;
                 }
                 break;
+
             case State::Slash:
                 if (ch=='/') {
                     //确认是注释,忽略整行
@@ -202,19 +279,19 @@ std::vector<Token> tokenize(const std::string& code) {
 
 // 测试代码
 int main() {
-    std::ifstream inputFile("source.cpp"); // 从文件读取
-    if (!inputFile.is_open()) {
+    std::ifstream sourceFile("source.cpp"); // 从文件读取
+    if (!sourceFile.is_open()) {
         std::cerr << "open error" << std::endl;
         return 1;
     }
 
     std::string code;
     std::string line;
-    while (std::getline(inputFile, line)) {
+    while (std::getline(sourceFile, line)) {
         code += line + '\n'; // 将每一行添加到 code 中
     }
 
-    inputFile.close(); // 关闭文件
+    sourceFile.close(); // 关闭文件
 
     auto tokens = tokenize(code);
 
